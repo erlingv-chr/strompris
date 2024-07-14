@@ -1,56 +1,43 @@
-//! This crate offers a wrapper of the Strømpris API offered through www.hvakosterstrommen.no
+//! This crate offers a wrapper of the Strømpris API offered by HvaKosterStrømmen.
 //!
-//! Something something strømpris
+//! See [`www.hvakosterstrommen.no`] for more info about the API.
+//!
+//! Example using tokio
+//! ```rust
+//! use strompris::{Strompris, PriceRegion};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), reqwest::Error> {
+//!     let client = Strompris::default();
+//!     let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).await?;
+//!     for r in resp.iter() {
+//!         dbg!(r);
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [`www.hvakosterstrommen.no`]: www.hvakosterstrommen.no
 
-use chrono::{DateTime, FixedOffset};
 use reqwest::Client;
 use reqwest::header::HeaderMap;
 use url::Url;
+pub use models::HourlyPrice;
+pub use models::PriceRegion;
 
-/// Because the different regions of Norway has different access to power, Norway is
-/// divided into 5 price regions. Each of these regions has its own hourly price.
-/// - NO1: Oslo / Øst-Norge
-/// - NO2: Kristiansand / Sør-Norge
-/// - NO3: Trondheim / Midt-Norge
-/// - NO4: Tromsø / Nord-Norge
-/// - NO5: Bergen / Vest-Norge
-pub enum PriceRegion {
-    NO1,
-    NO2,
-    NO3,
-    NO4,
-    NO5,
-}
+mod models;
+mod local_time_deserializer;
 
-/// The HourlyPrice struct wraps the resulting JSON-object, exposing each attribute.
-/// The prices are fetched from [`ENTSO-E`] in euro, and
-/// are converted by HvaKosterStrømmen using the lastest exchange rate from Norges Bank.
-/// Hence, prices may vary slightly from official prices in NOK found at e.g. Nord Pool.
-/// The prices are not including VAT.
+/// The client for communicating with the Strømpris API hosted on
+/// [`www.hvakosterstrommen.no`].
 ///
-/// [`ENTSO-E`]: https://transparency.entsoe.eu/
-#[derive(Default, Debug, Clone, serde::Deserialize)]
-pub struct HourlyPrice {
-    #[serde(rename(deserialize = "NOK_per_kWh"))]
-    pub nok_per_kwh: f64,
-    #[serde(rename(deserialize = "EUR_per_kWh"))]
-    pub eur_per_kwh: f64,
-    #[serde(rename(deserialize = "EXR"))]
-    pub exr: f64,
-    #[serde(with = "local_time_deserializer")]
-    pub time_start: DateTime<FixedOffset>,
-    #[serde(with = "local_time_deserializer")]
-    pub time_end: DateTime<FixedOffset>
-}
-
-/// The Strompris struct is the client for communicating with the Strømpris API hosted on
-/// [`www.hvakosterstrommen.no`]. It exposes a single method for communicating with the API.
+/// It exposes a single method for communicating with the API.
 ///
 /// Example
 /// ```rust
+/// # use strompris::{PriceRegion, Strompris};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), reqwest::Error> {
-/// use strompris::{PriceRegion, Strompris};
 /// let client = Strompris::default();
 /// let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).await?;
 /// for r in resp.iter() {
@@ -79,6 +66,7 @@ impl Strompris {
         Strompris { client, base_url }
     }
 
+    /// Get the price for the given date and price region.
     pub async fn get_price(
         &self,
         year: u32,
@@ -110,37 +98,6 @@ impl Strompris {
 impl Default for Strompris {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-mod local_time_deserializer {
-    use std::ops::Sub;
-
-    use chrono::{DateTime, Duration, FixedOffset, NaiveDateTime};
-    use serde::{self, Deserialize, Deserializer};
-
-    const FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%z";
-
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<DateTime<FixedOffset>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-
-        // Get the timezone offset by finding the substring following "+"
-        let tz_offset_start = s.find('+').unwrap() + 1;
-        let tz_offset: i32 = s.get(tz_offset_start..tz_offset_start + 2).unwrap().parse().unwrap();
-
-
-        let dt = NaiveDateTime::parse_from_str(&s, FORMAT).map_err(serde::de::Error::custom)?;
-        let hour = 3600;
-        let tz = FixedOffset::east_opt(tz_offset * hour).unwrap();
-
-        // Subtract the offset because parsing ignores timezone
-        let offset_delta = Duration::hours(tz_offset as i64);
-        Ok(DateTime::<FixedOffset>::from_naive_utc_and_offset(dt, tz).sub(offset_delta))
     }
 }
 
