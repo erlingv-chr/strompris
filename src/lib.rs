@@ -10,12 +10,13 @@
 //!
 //! Example using tokio:
 //! ```rust
-//! use strompris::{Strompris, PriceRegion};
+//! use strompris::{Strompris, PriceRegion, Date};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), reqwest::Error> {
+//!     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 //!     let client = Strompris::default();
-//!     let resp = client.get_price(2024, 1, 31, PriceRegion::NO1).await?;
+//!     let resp = client.get_price(date, PriceRegion::NO1).await?;
 //!     for r in resp.iter() {
 //!         dbg!(r);
 //!     }
@@ -32,6 +33,8 @@ use reqwest::header::HeaderMap;
 use url::Url;
 pub use models::HourlyPrice;
 pub use models::PriceRegion;
+pub use models::Date;
+use chrono::Datelike;
 mod models;
 mod local_time_deserializer;
 pub mod blocking;
@@ -43,11 +46,12 @@ pub mod blocking;
 ///
 /// Example:
 /// ```rust
-/// # use strompris::{PriceRegion, Strompris};
+/// # use strompris::{PriceRegion, Strompris, Date};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), reqwest::Error> {
+/// let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
 /// let client = Strompris::default();
-/// let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).await?;
+/// let resp = client.get_price(date, PriceRegion::NO1).await?;
 /// for r in resp.iter() {
 ///     dbg!(r);
 /// }
@@ -77,9 +81,7 @@ impl Strompris {
     /// Get the price for the given date and price region.
     pub async fn get_price(
         &self,
-        year: u32,
-        month: u32,
-        day: u32,
+        date: impl Datelike,
         price_region: PriceRegion,
     ) -> Result<Vec<HourlyPrice>, reqwest::Error> {
 
@@ -91,6 +93,9 @@ impl Strompris {
             PriceRegion::NO5 => "NO5",
         };
 
+        let year = date.year();
+        let month = date.month();
+        let day = date.day();
         let endpoint = format!("{}/{:02}-{:02}_{}.json", year, month, day, price_region);
         let url = self.base_url.join(endpoint.as_str()).unwrap();
         self
@@ -112,6 +117,7 @@ impl Default for Strompris {
 
 #[cfg(test)]
 mod tests {
+    use crate::models::Date;
     use super::*;
 
     #[tokio::test]
@@ -119,7 +125,8 @@ mod tests {
         let client = Strompris::new();
 
         // Just tests if the request goes through and deserializes correctly
-        let r = client.get_price(2024, 7, 14, PriceRegion::NO1).await.unwrap();
+        let date = Date::from_ymd_opt(2024, 7, 15).unwrap();
+        let r = client.get_price(date, PriceRegion::NO1).await.unwrap();
         dbg!(&r);
         let first = r.last().unwrap();
         dbg!(&first.time_end.to_rfc3339());

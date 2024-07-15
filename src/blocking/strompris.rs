@@ -1,3 +1,4 @@
+use chrono::Datelike;
 use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use url::Url;
@@ -11,10 +12,12 @@ use crate::PriceRegion;
 /// ```rust
 /// use strompris::blocking::Strompris;
 /// use strompris::PriceRegion;
+/// use strompris::Date;
 ///
 /// fn main() {
+///     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 ///     let client = Strompris::default();
-///     let resp = client.get_price(2024, 1, 31, PriceRegion::NO1).unwrap();
+///     let resp = client.get_price(date, PriceRegion::NO1).unwrap();
 ///     for r in resp.iter() {
 ///         dbg!(r);
 ///     }
@@ -43,9 +46,7 @@ impl Strompris {
     /// Get the price for the given date and price region.
     pub fn get_price(
         &self,
-        year: u32,
-        month: u32,
-        day: u32,
+        date: impl Datelike,
         price_region: PriceRegion,
     ) -> Result<Vec<HourlyPrice>, reqwest::Error> {
 
@@ -57,6 +58,9 @@ impl Strompris {
             PriceRegion::NO5 => "NO5",
         };
 
+        let year = date.year();
+        let month = date.month();
+        let day = date.day();
         let endpoint = format!("{}/{:02}-{:02}_{}.json", year, month, day, price_region);
         let url = self.base_url.join(endpoint.as_str()).unwrap();
         self
@@ -76,11 +80,13 @@ impl Default for Strompris {
 
 #[cfg(test)]
 mod tests {
+    use crate::Date;
     use super::*;
 
     fn it_works() {
+        let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
         let client = Strompris::default();
-        let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).unwrap();
+        let resp = client.get_price(date, PriceRegion::NO1).unwrap();
         for r in resp.iter() {
             dbg!(r);
         }
