@@ -1,9 +1,12 @@
+use chrono::{Datelike, NaiveDate};
 use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use url::Url;
 
-use crate::HourlyPrice;
 use crate::PriceRegion;
+use crate::Result;
+use crate::StromprisError;
+use crate::{HourlyPrice, MIN_DATE};
 
 /// The blocking version of [`Strompris`].
 ///
@@ -11,10 +14,12 @@ use crate::PriceRegion;
 /// ```rust
 /// use strompris::blocking::Strompris;
 /// use strompris::PriceRegion;
+/// use strompris::Date;
 ///
 /// fn main() {
+///     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 ///     let client = Strompris::default();
-///     let resp = client.get_price(2024, 1, 31, PriceRegion::NO1).unwrap();
+///     let resp = client.get_price(date, PriceRegion::NO1).unwrap();
 ///     for r in resp.iter() {
 ///         dbg!(r);
 ///     }
@@ -41,14 +46,10 @@ impl Strompris {
     }
 
     /// Get the price for the given date and price region.
-    pub fn get_price(
-        &self,
-        year: u32,
-        month: u32,
-        day: u32,
-        price_region: PriceRegion,
-    ) -> Result<Vec<HourlyPrice>, reqwest::Error> {
-
+    ///
+    /// Note: The API does not know the future! Tomorrow's prices are usually ready by 13:00,
+    /// local time.
+    pub fn get_price(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
         let price_region = match price_region {
             PriceRegion::NO1 => "NO1",
             PriceRegion::NO2 => "NO2",
@@ -57,14 +58,34 @@ impl Strompris {
             PriceRegion::NO5 => "NO5",
         };
 
+        if !self.date_after_min_date(&date) {
+            return Err(StromprisError {
+                message: "Date is before the minimum acceptable date".to_string(),
+            });
+        }
+
+        let year = date.year();
+        let month = date.month();
+        let day = date.day();
         let endpoint = format!("{}/{:02}-{:02}_{}.json", year, month, day, price_region);
         let url = self.base_url.join(endpoint.as_str()).unwrap();
-        self
-            .client
-            .get(url.as_str())
-            .send()
-            .unwrap()
+        let response = self.client.get(url.as_str()).send().unwrap();
+        if response.status().is_client_error() {
+            return Err(StromprisError {
+                message: "Prices not yet available".to_string(),
+            });
+        }
+        response
             .json::<Vec<HourlyPrice>>()
+            .map_err(|e| StromprisError { message: e.to_string() })
+    }
+
+    fn date_after_min_date(&self, given_date: &impl Datelike) -> bool {
+        let year = given_date.year();
+        let month = given_date.month();
+        let day = given_date.day();
+        let given_datetime = NaiveDate::from_ymd_opt(year, month, day).unwrap();
+        given_datetime >= MIN_DATE.unwrap()
     }
 }
 
@@ -73,17 +94,3 @@ impl Default for Strompris {
         Strompris::new()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn it_works() {
-        let client = Strompris::default();
-        let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).unwrap();
-        for r in resp.iter() {
-            dbg!(r);
-        }
-    }
-}
-

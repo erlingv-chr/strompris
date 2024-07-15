@@ -10,12 +10,13 @@
 //!
 //! Example using tokio:
 //! ```rust
-//! use strompris::{Strompris, PriceRegion};
+//! use strompris::{Strompris, PriceRegion, Date, StromprisError};
 //!
 //! #[tokio::main]
-//! async fn main() -> Result<(), reqwest::Error> {
+//! async fn main() -> Result<(), StromprisError> {
+//!     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 //!     let client = Strompris::default();
-//!     let resp = client.get_price(2024, 1, 31, PriceRegion::NO1).await?;
+//!     let resp = client.get_price(date, PriceRegion::NO1).await?;
 //!     for r in resp.iter() {
 //!         dbg!(r);
 //!     }
@@ -27,14 +28,37 @@
 
 #![deny(missing_docs)]
 
-use reqwest::Client;
+use std::fmt::{Display, Formatter};
+
+use chrono::{Datelike, NaiveDate};
 use reqwest::header::HeaderMap;
+use reqwest::Client;
 use url::Url;
+
+pub use models::Date;
 pub use models::HourlyPrice;
 pub use models::PriceRegion;
-mod models;
-mod local_time_deserializer;
+
 pub mod blocking;
+mod local_time_deserializer;
+mod models;
+
+// Has to be an option because of rustc limitations.
+static MIN_DATE: Option<NaiveDate> = NaiveDate::from_ymd_opt(2021, 12, 1);
+
+type Result<T> = std::result::Result<T, StromprisError>;
+
+/// The errors that may occur when using Strompris.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StromprisError {
+    message: String,
+}
+
+impl Display for StromprisError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
 
 /// The client for communicating with the Strømpris API hosted on
 /// [`www.hvakosterstrommen.no`].
@@ -43,11 +67,13 @@ pub mod blocking;
 ///
 /// Example:
 /// ```rust
-/// # use strompris::{PriceRegion, Strompris};
+/// # use strompris::{PriceRegion, Strompris, Date, StromprisError};
 /// # #[tokio::main]
-/// # async fn main() -> Result<(), reqwest::Error> {
+/// # async fn main() -> Result<(), StromprisError> {
+/// use strompris::StromprisError;
+/// let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
 /// let client = Strompris::default();
-/// let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).await?;
+/// let resp = client.get_price(date, PriceRegion::NO1).await?;
 /// for r in resp.iter() {
 ///     dbg!(r);
 /// }
@@ -75,13 +101,15 @@ impl Strompris {
     }
 
     /// Get the price for the given date and price region.
-    pub async fn get_price(
-        &self,
-        year: u32,
-        month: u32,
-        day: u32,
-        price_region: PriceRegion,
-    ) -> Result<Vec<HourlyPrice>, reqwest::Error> {
+    ///
+    /// Note: The API does not know the future! Tomorrow's prices are usually ready by 13:00,
+    /// local time.
+    pub async fn get_price(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
+        if !self.date_after_min_date(&date) {
+            return Err(StromprisError {
+                message: "Date is before the minimum acceptable date".to_string(),
+            });
+        }
 
         let price_region = match price_region {
             PriceRegion::NO1 => "NO1",
@@ -91,15 +119,30 @@ impl Strompris {
             PriceRegion::NO5 => "NO5",
         };
 
+        let year = date.year();
+        let month = date.month();
+        let day = date.day();
         let endpoint = format!("{}/{:02}-{:02}_{}.json", year, month, day, price_region);
         let url = self.base_url.join(endpoint.as_str()).unwrap();
-        self
-            .client
-            .get(url.as_str())
-            .send()
-            .await?
-            .json::<Vec<HourlyPrice>>()
-            .await
+        match self.client.get(url.as_str()).send().await {
+            Ok(r) => {
+                if r.status().is_client_error() {
+                    return Err(StromprisError {
+                        message: "Prices not yet available".to_string(),
+                    });
+                }
+                r.json().await.map_err(|e| StromprisError { message: e.to_string() })
+            }
+            Err(e) => Err(StromprisError { message: e.to_string() }),
+        }
+    }
+
+    fn date_after_min_date(&self, given_date: &impl Datelike) -> bool {
+        let year = given_date.year();
+        let month = given_date.month();
+        let day = given_date.day();
+        let given_datetime = NaiveDate::from_ymd_opt(year, month, day).unwrap();
+        given_datetime >= MIN_DATE.unwrap()
     }
 }
 
@@ -109,19 +152,110 @@ impl Default for Strompris {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, Utc};
+
+    use crate::blocking;
+    use crate::models::Date;
+    use crate::StromprisError;
+
     use super::*;
 
     #[tokio::test]
-    async fn it_works() {
+    async fn async_works() {
         let client = Strompris::new();
 
         // Just tests if the request goes through and deserializes correctly
-        let r = client.get_price(2024, 7, 14, PriceRegion::NO1).await.unwrap();
-        dbg!(&r);
-        let first = r.last().unwrap();
-        dbg!(&first.time_end.to_rfc3339());
+        let date = Date::from_ymd_opt(2024, 7, 15).unwrap();
+        client.get_price(date, PriceRegion::NO1).await.unwrap();
+    }
+
+    #[test]
+    fn blocking_works() {
+        let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
+        let client = blocking::Strompris::default();
+        client.get_price(date, PriceRegion::NO1).unwrap();
+    }
+
+    #[test]
+    fn blocking_works_with_chrono_date() {
+        let date = NaiveDate::from_ymd_opt(2024, 7, 14).unwrap();
+        let client = blocking::Strompris::default();
+        client.get_price(date, PriceRegion::NO1).unwrap();
+        let date: DateTime<Utc> = DateTime::default()
+            .with_year(2024)
+            .unwrap()
+            .with_month(7)
+            .unwrap()
+            .with_day(15)
+            .unwrap();
+        client.get_price(date, PriceRegion::NO1).unwrap();
+    }
+
+    #[tokio::test]
+    async fn async_works_with_chrono_date() {
+        let date = NaiveDate::from_ymd_opt(2024, 7, 14).unwrap();
+        let client = Strompris::default();
+        client.get_price(date, PriceRegion::NO1).await.unwrap();
+        let date: DateTime<Utc> = DateTime::default()
+            .with_year(2024)
+            .unwrap()
+            .with_month(7)
+            .unwrap()
+            .with_day(15)
+            .unwrap();
+        client.get_price(date, PriceRegion::NO1).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn async_returns_error_when_given_an_early_date() {
+        let date = NaiveDate::from_ymd_opt(2021, 11, 30).unwrap();
+        let client = Strompris::default();
+        let result = client.get_price(date, PriceRegion::NO1).await;
+        assert_eq!(
+            result,
+            Err(StromprisError {
+                message: "Date is before the minimum acceptable date".to_string()
+            })
+        );
+    }
+    #[test]
+    fn blocking_returns_error_when_given_an_early_date() {
+        let date = NaiveDate::from_ymd_opt(2021, 11, 30).unwrap();
+        let client = blocking::Strompris::default();
+        let result = client.get_price(date, PriceRegion::NO1);
+        assert_eq!(
+            result,
+            Err(StromprisError {
+                message: "Date is before the minimum acceptable date".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn blocking_returns_error_when_getting_price_from_futre() {
+        let date = NaiveDate::from_ymd_opt(2999, 11, 30).unwrap();
+        let client = blocking::Strompris::default();
+        let result = client.get_price(date, PriceRegion::NO1);
+        assert_eq!(
+            result,
+            Err(StromprisError {
+                message: "Prices not yet available".to_string()
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn async_returns_error_when_getting_price_from_futre() {
+        let date = NaiveDate::from_ymd_opt(2999, 11, 30).unwrap();
+        let client = Strompris::default();
+        let result = client.get_price(date, PriceRegion::NO1).await;
+        assert_eq!(
+            result,
+            Err(StromprisError {
+                message: "Prices not yet available".to_string()
+            })
+        );
     }
 }

@@ -1,5 +1,5 @@
-use chrono::{DateTime, FixedOffset};
 use crate::local_time_deserializer;
+use chrono::{DateTime, FixedOffset};
 
 /// Wraps the resulting JSON-object, exposing each attribute.
 ///
@@ -9,7 +9,7 @@ use crate::local_time_deserializer;
 /// The prices are not including VAT.
 ///
 /// [`ENTSO-E`]: https://transparency.entsoe.eu/
-#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, serde::Deserialize)]
 pub struct HourlyPrice {
     /// The price per kWh in NOK, calculated using attribute `exr`
     #[serde(rename(deserialize = "NOK_per_kWh"))]
@@ -25,5 +25,5 @@ pub struct HourlyPrice {
     pub time_start: DateTime<FixedOffset>,
     /// The time this price is valid until
     #[serde(with = "local_time_deserializer")]
-    pub time_end: DateTime<FixedOffset>
+    pub time_end: DateTime<FixedOffset>,
 }
