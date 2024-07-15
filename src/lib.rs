@@ -1,15 +1,21 @@
 //! This crate offers a wrapper of the Strømpris API offered by HvaKosterStrømmen.
 //!
+//! The crate is designed to be as simple as the API itself, so only one method is exposed: A
+//! method for getting the prices for a given region on a given day.
+//!
+//! This crate offers both async and blocking ways of fetching prices. See the blocking module
+//! for more information on the blocking API.
+//!
 //! See [`www.hvakosterstrommen.no`] for more info about the API.
 //!
-//! Example using tokio
+//! Example using tokio:
 //! ```rust
 //! use strompris::{Strompris, PriceRegion};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), reqwest::Error> {
 //!     let client = Strompris::default();
-//!     let resp = client.get_price(2024, 7, 14, PriceRegion::NO1).await?;
+//!     let resp = client.get_price(2024, 1, 31, PriceRegion::NO1).await?;
 //!     for r in resp.iter() {
 //!         dbg!(r);
 //!     }
@@ -19,21 +25,23 @@
 //!
 //! [`www.hvakosterstrommen.no`]: www.hvakosterstrommen.no
 
+#![deny(missing_docs)]
+
 use reqwest::Client;
 use reqwest::header::HeaderMap;
 use url::Url;
 pub use models::HourlyPrice;
 pub use models::PriceRegion;
-
 mod models;
 mod local_time_deserializer;
+pub mod blocking;
 
 /// The client for communicating with the Strømpris API hosted on
 /// [`www.hvakosterstrommen.no`].
 ///
 /// It exposes a single method for communicating with the API.
 ///
-/// Example
+/// Example:
 /// ```rust
 /// # use strompris::{PriceRegion, Strompris};
 /// # #[tokio::main]
