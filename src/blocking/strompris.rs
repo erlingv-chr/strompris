@@ -77,19 +77,3 @@ impl Default for Strompris {
         Strompris::new()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::Date;
-    use super::*;
-
-    fn it_works() {
-        let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
-        let client = Strompris::default();
-        let resp = client.get_price(date, PriceRegion::NO1).unwrap();
-        for r in resp.iter() {
-            dbg!(r);
-        }
-    }
-}
-

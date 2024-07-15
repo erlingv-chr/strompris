@@ -121,7 +121,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn it_works() {
+    async fn async_works() {
         let client = Strompris::new();
 
         // Just tests if the request goes through and deserializes correctly
@@ -130,5 +130,16 @@ mod tests {
         dbg!(&r);
         let first = r.last().unwrap();
         dbg!(&first.time_end.to_rfc3339());
+    }
+
+    fn blocking_works() {
+        use crate::blocking::Strompris;
+
+        let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
+        let client = Strompris::default();
+        let resp = client.get_price(date, PriceRegion::NO1).unwrap();
+        for r in resp.iter() {
+            dbg!(r);
+        }
     }
 }
