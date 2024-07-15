@@ -11,14 +11,19 @@ use crate::local_time_deserializer;
 /// [`ENTSO-E`]: https://transparency.entsoe.eu/
 #[derive(Default, Debug, Clone, serde::Deserialize)]
 pub struct HourlyPrice {
+    /// The price per kWh in NOK, calculated using attribute `exr`
     #[serde(rename(deserialize = "NOK_per_kWh"))]
     pub nok_per_kwh: f64,
+    /// The price per kWh in EUR
     #[serde(rename(deserialize = "EUR_per_kWh"))]
     pub eur_per_kwh: f64,
+    /// The exchange rate from Norges Bank used to calculate `nok_per_kwh`
     #[serde(rename(deserialize = "EXR"))]
     pub exr: f64,
+    /// The time this price is valid from
     #[serde(with = "local_time_deserializer")]
     pub time_start: DateTime<FixedOffset>,
+    /// The time this price is valid until
     #[serde(with = "local_time_deserializer")]
     pub time_end: DateTime<FixedOffset>
 }
