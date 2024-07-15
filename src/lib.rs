@@ -117,8 +117,10 @@ impl Default for Strompris {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, Utc};
     use crate::models::Date;
     use super::*;
+    use crate::blocking;
 
     #[tokio::test]
     async fn async_works() {
@@ -126,20 +128,36 @@ mod tests {
 
         // Just tests if the request goes through and deserializes correctly
         let date = Date::from_ymd_opt(2024, 7, 15).unwrap();
-        let r = client.get_price(date, PriceRegion::NO1).await.unwrap();
-        dbg!(&r);
-        let first = r.last().unwrap();
-        dbg!(&first.time_end.to_rfc3339());
+        client.get_price(date, PriceRegion::NO1).await.unwrap();
     }
 
     fn blocking_works() {
-        use crate::blocking::Strompris;
 
         let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
+        let client = blocking::Strompris::default();
+        client.get_price(date, PriceRegion::NO1).unwrap();
+    }
+
+    fn blocking_works_with_chrono_date() {
+        let date = NaiveDate::from_ymd_opt(2024, 7, 14).unwrap();
+        let client = blocking::Strompris::default();
+        client.get_price(date, PriceRegion::NO1).unwrap();
+        let date: DateTime<Utc> = DateTime::default()
+            .with_year(2024).unwrap()
+            .with_month(7).unwrap()
+            .with_day(15).unwrap();
+        client.get_price(date, PriceRegion::NO1).unwrap();
+    }
+
+    #[tokio::test]
+    async fn async_works_with_chrono_date() {
+        let date = NaiveDate::from_ymd_opt(2024, 7, 14).unwrap();
         let client = Strompris::default();
-        let resp = client.get_price(date, PriceRegion::NO1).unwrap();
-        for r in resp.iter() {
-            dbg!(r);
-        }
+        client.get_price(date, PriceRegion::NO1).await.unwrap();
+        let date: DateTime<Utc> = DateTime::default()
+            .with_year(2024).unwrap()
+            .with_month(7).unwrap()
+            .with_day(15).unwrap();
+        client.get_price(date, PriceRegion::NO1).await.unwrap();
     }
 }
