@@ -3,7 +3,7 @@ use std::ops::Sub;
 use chrono::{DateTime, Duration, FixedOffset, NaiveDateTime};
 use serde::{self, Deserialize, Deserializer};
 
-const FORMAT: &'static str = "%Y-%m-%dT%H:%M:%S%z";
+const FORMAT: &str = "%Y-%m-%dT%H:%M:%S%z";
 
 pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<FixedOffset>, D::Error>
 where
