@@ -10,7 +10,7 @@
 //!
 //! Example using tokio:
 //! ```rust
-//! use strompris::{Strompris, PriceRegion, Date, error::Error};
+//! use strompris::{Strompris, PriceRegion, Date, Error};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Error> {
@@ -28,7 +28,7 @@
 
 #![deny(missing_docs)]
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 use chrono::{Datelike, NaiveDate};
 use reqwest::header::HeaderMap;
 use reqwest::Client;
@@ -37,6 +37,7 @@ use url::Url;
 pub use models::Date;
 pub use models::HourlyPrice;
 pub use models::PriceRegion;
+pub use error::Error;
 
 pub mod blocking;
 pub mod error;
@@ -215,7 +216,7 @@ mod tests {
         let result = client.get_price(date, PriceRegion::NO1);
         assert_eq!(
             result.err().map(|e| e.to_string()).unwrap(),
-            "Date is before the minimum acceptable date".to_string()
+            "Prices are not available for this date".to_string()
         );
     }
 
