@@ -1,10 +1,12 @@
 use chrono::NaiveDate;
 use chrono::{Datelike, IsoWeek, Weekday};
+use derive_more::Display;
 
 /// A wrapper for chrono::NaiveDate.
 ///
 /// A convenient (but optional) way of using the library without adding chrono to your
 /// Cargo.toml file.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Display, Default)]
 pub struct Date {
     inner_date: NaiveDate,
 }
