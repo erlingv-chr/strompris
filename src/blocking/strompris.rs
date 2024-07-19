@@ -3,9 +3,9 @@ use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use url::Url;
 
+use crate::Error;
 use crate::PriceRegion;
 use crate::Result;
-use crate::StromprisError;
 use crate::{HourlyPrice, MIN_DATE};
 
 /// The blocking version of [`Strompris`].
@@ -16,13 +16,11 @@ use crate::{HourlyPrice, MIN_DATE};
 /// use strompris::PriceRegion;
 /// use strompris::Date;
 ///
-/// fn main() {
-///     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
-///     let client = Strompris::default();
-///     let resp = client.get_price(date, PriceRegion::NO1).unwrap();
-///     for r in resp.iter() {
-///         dbg!(r);
-///     }
+/// let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
+/// let client = Strompris::default();
+/// let resp = client.get_price(date, PriceRegion::NO1).unwrap();
+/// for r in resp.iter() {
+///     dbg!(r);
 /// }
 /// ```
 /// [`Strompris`]: crate::Strompris
@@ -59,9 +57,7 @@ impl Strompris {
         };
 
         if !self.date_after_min_date(&date) {
-            return Err(StromprisError {
-                message: "Date is before the minimum acceptable date".to_string(),
-            });
+            return Err(Error::Custom("Date is before the minimum acceptable date".to_string()));
         }
 
         let year = date.year();
@@ -69,15 +65,12 @@ impl Strompris {
         let day = date.day();
         let endpoint = format!("{}/{:02}-{:02}_{}.json", year, month, day, price_region);
         let url = self.base_url.join(endpoint.as_str()).unwrap();
-        let response = self.client.get(url.as_str()).send().unwrap();
+        let response = self.client.get(url).send()?;
         if response.status().is_client_error() {
-            return Err(StromprisError {
-                message: "Prices not yet available".to_string(),
-            });
+            return Err(Error::Custom("Prices are not available for this date".to_string()));
         }
-        response
-            .json::<Vec<HourlyPrice>>()
-            .map_err(|e| StromprisError { message: e.to_string() })
+
+        Ok(response.json::<Vec<HourlyPrice>>()?)
     }
 
     fn date_after_min_date(&self, given_date: &impl Datelike) -> bool {

@@ -10,10 +10,10 @@
 //!
 //! Example using tokio:
 //! ```rust
-//! use strompris::{Strompris, PriceRegion, Date, StromprisError};
+//! use strompris::{Strompris, PriceRegion, Date, error::Error};
 //!
 //! #[tokio::main]
-//! async fn main() -> Result<(), StromprisError> {
+//! async fn main() -> Result<(), Error> {
 //!     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 //!     let client = Strompris::default();
 //!     let resp = client.get_price(date, PriceRegion::NO1).await?;
@@ -28,8 +28,7 @@
 
 #![deny(missing_docs)]
 
-use std::fmt::{Display, Formatter};
-
+use crate::error::{Error, Result};
 use chrono::{Datelike, NaiveDate};
 use reqwest::header::HeaderMap;
 use reqwest::Client;
@@ -40,25 +39,12 @@ pub use models::HourlyPrice;
 pub use models::PriceRegion;
 
 pub mod blocking;
+pub mod error;
 mod local_time_deserializer;
 mod models;
 
 // Has to be an option because of rustc limitations.
 static MIN_DATE: Option<NaiveDate> = NaiveDate::from_ymd_opt(2021, 12, 1);
-
-type Result<T> = std::result::Result<T, StromprisError>;
-
-/// The errors that may occur when using Strompris.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StromprisError {
-    message: String,
-}
-
-impl Display for StromprisError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
 
 /// The client for communicating with the Strømpris API hosted on
 /// [`www.hvakosterstrommen.no`].
@@ -67,10 +53,10 @@ impl Display for StromprisError {
 ///
 /// Example:
 /// ```rust
-/// # use strompris::{PriceRegion, Strompris, Date, StromprisError};
+/// # use strompris::{PriceRegion, Strompris, Date, Error};
 /// # #[tokio::main]
-/// # async fn main() -> Result<(), StromprisError> {
-/// use strompris::StromprisError;
+/// # async fn main() -> Result<(), Error> {
+/// use strompris::Error;
 /// let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
 /// let client = Strompris::default();
 /// let resp = client.get_price(date, PriceRegion::NO1).await?;
@@ -106,9 +92,7 @@ impl Strompris {
     /// local time.
     pub async fn get_price(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
         if !self.date_after_min_date(&date) {
-            return Err(StromprisError {
-                message: "Date is before the minimum acceptable date".to_string(),
-            });
+            return Err(Error::Custom("Date is before the minimum acceptable date".into()));
         }
 
         let price_region = match price_region {
@@ -123,18 +107,14 @@ impl Strompris {
         let month = date.month();
         let day = date.day();
         let endpoint = format!("{}/{:02}-{:02}_{}.json", year, month, day, price_region);
-        let url = self.base_url.join(endpoint.as_str()).unwrap();
-        match self.client.get(url.as_str()).send().await {
-            Ok(r) => {
-                if r.status().is_client_error() {
-                    return Err(StromprisError {
-                        message: "Prices not yet available".to_string(),
-                    });
-                }
-                r.json().await.map_err(|e| StromprisError { message: e.to_string() })
-            }
-            Err(e) => Err(StromprisError { message: e.to_string() }),
+        let url = self.base_url.join(endpoint.as_str())?;
+
+        let response = self.client.get(url).send().await?;
+        if response.status().is_client_error() {
+            return Err(Error::Custom("Prices are not available for this date".to_string()));
         }
+
+        Ok(response.json::<Vec<HourlyPrice>>().await?)
     }
 
     fn date_after_min_date(&self, given_date: &impl Datelike) -> bool {
@@ -158,8 +138,6 @@ mod tests {
 
     use crate::blocking;
     use crate::models::Date;
-    use crate::StromprisError;
-
     use super::*;
 
     #[tokio::test]
@@ -213,11 +191,10 @@ mod tests {
         let date = NaiveDate::from_ymd_opt(2021, 11, 30).unwrap();
         let client = Strompris::default();
         let result = client.get_price(date, PriceRegion::NO1).await;
+
         assert_eq!(
-            result,
-            Err(StromprisError {
-                message: "Date is before the minimum acceptable date".to_string()
-            })
+            result.err().map(|e| e.to_string()).unwrap(),
+            "Date is before the minimum acceptable date".to_string()
         );
     }
     #[test]
@@ -226,10 +203,8 @@ mod tests {
         let client = blocking::Strompris::default();
         let result = client.get_price(date, PriceRegion::NO1);
         assert_eq!(
-            result,
-            Err(StromprisError {
-                message: "Date is before the minimum acceptable date".to_string()
-            })
+            result.err().map(|e| e.to_string()).unwrap(),
+            "Date is before the minimum acceptable date".to_string()
         );
     }
 
@@ -239,10 +214,8 @@ mod tests {
         let client = blocking::Strompris::default();
         let result = client.get_price(date, PriceRegion::NO1);
         assert_eq!(
-            result,
-            Err(StromprisError {
-                message: "Prices not yet available".to_string()
-            })
+            result.err().map(|e| e.to_string()).unwrap(),
+            "Date is before the minimum acceptable date".to_string()
         );
     }
 
@@ -252,10 +225,8 @@ mod tests {
         let client = Strompris::default();
         let result = client.get_price(date, PriceRegion::NO1).await;
         assert_eq!(
-            result,
-            Err(StromprisError {
-                message: "Prices not yet available".to_string()
-            })
+            result.err().map(|e| e.to_string()).unwrap(),
+            "Prices are not available for this date".to_string()
         );
     }
 }
