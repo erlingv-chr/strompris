@@ -2,6 +2,12 @@
 name = "strompris"
 version = "0.3.0"
 edition = "2021"
+license-file = "LICENSE.md"
+description = "A simple wrapper of the Strømpris-API from https://hvakosterstrommen.no"
+repository = "https://github.com/erlingv-chr/strompris/"
+readme = "README.md"
+keywords = ["strompris", "hvakosterstrommen"]
+categories = ["api-bindings"]
 
 [dependencies]
 chrono = { version = "0.4.38" , features = ["serde", "clock"]}
