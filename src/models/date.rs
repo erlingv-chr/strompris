@@ -13,10 +13,7 @@ impl Date {
     /// Shadows the [`chrono::NaiveDate::from_ymd_opt`] method.
     pub fn from_ymd_opt(year: i32, month: u32, day: u32) -> Option<Self> {
         let naive_date = NaiveDate::from_ymd_opt(year, month, day);
-        match naive_date {
-            Some(d) => Some(Date { inner_date: d }),
-            None => None,
-        }
+        naive_date.map(|d| Date { inner_date: d} )
     }
 }
 
@@ -58,51 +55,30 @@ impl Datelike for Date {
     }
 
     fn with_year(&self, year: i32) -> Option<Self> {
-        match self.inner_date.with_year(year) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_year(year).map(|d| Date { inner_date: d} )
     }
 
     fn with_month(&self, month: u32) -> Option<Self> {
-        match self.inner_date.with_month(month) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_month(month).map(|d| Date { inner_date: d} )
     }
 
     fn with_month0(&self, month0: u32) -> Option<Self> {
-        match self.inner_date.with_month0(month0) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_month0(month0).map(|d| Date { inner_date: d} )
     }
 
     fn with_day(&self, day: u32) -> Option<Self> {
-        match self.inner_date.with_day(day) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_day(day).map(|d| Date { inner_date: d} )
     }
 
     fn with_day0(&self, day0: u32) -> Option<Self> {
-        match self.inner_date.with_day0(day0) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_day0(day0).map(|d| Date { inner_date: d} )
     }
 
     fn with_ordinal(&self, ordinal: u32) -> Option<Self> {
-        match self.inner_date.with_ordinal(ordinal) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_ordinal(ordinal).map(|d| Date { inner_date: d} )
     }
 
     fn with_ordinal0(&self, ordinal0: u32) -> Option<Self> {
-        match self.inner_date.with_ordinal0(ordinal0) {
-            Some(d) => Some(Self { inner_date: d }),
-            None => None,
-        }
+        self.inner_date.with_ordinal0(ordinal0).map(|d| Date { inner_date: d} )
     }
 }
