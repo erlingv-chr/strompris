@@ -1,5 +1,7 @@
+use std::cmp::Ordering;
 use crate::local_time_deserializer;
 use chrono::{DateTime, FixedOffset};
+use derive_more::Display;
 
 /// Wraps the resulting JSON-object, exposing each attribute.
 ///
@@ -26,4 +28,10 @@ pub struct HourlyPrice {
     /// The time this price is valid until
     #[serde(with = "local_time_deserializer")]
     pub time_end: DateTime<FixedOffset>,
+}
+
+impl PartialOrd for HourlyPrice {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.nok_per_kwh.partial_cmp(&other.nok_per_kwh)
+    }
 }
