@@ -16,9 +16,11 @@
 //! async fn main() -> Result<(), Error> {
 //!     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 //!     let client = Strompris::default();
-//!     let resp = client.get_prices(date, PriceRegion::NO1).await?;
-//!     for r in resp.iter() {
-//!         dbg!(r);
+//!     let prices = client.get_prices(date, PriceRegion::NO1).await?;
+//!     for price in prices.iter() {
+//!         println!("Price: {:.2}", price.nok_per_kwh);
+//!         println!("From: {}", price.time_start.time());
+//!         println!("To: {}", price.time_end.time());
 //!     }
 //!     Ok(())
 //! }

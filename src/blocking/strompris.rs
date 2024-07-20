@@ -13,14 +13,15 @@ use crate::{HourlyPrice, MIN_DATE};
 /// Example:
 /// ```rust
 /// use strompris::blocking::Strompris;
-/// use strompris::PriceRegion;
-/// use strompris::Date;
+/// use strompris::{Date, PriceRegion};
 ///
 /// let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 /// let client = Strompris::default();
-/// let resp = client.get_prices(date, PriceRegion::NO1).unwrap();
-/// for r in resp.iter() {
-///     dbg!(r);
+/// let prices = client.get_prices(date, PriceRegion::NO1).unwrap();
+/// for price in prices.iter() {
+///     println!("Price: {:.2}", price.nok_per_kwh);
+///     println!("From: {}", price.time_start.time());
+///     println!("To: {}\n", price.time_end.time());
 /// }
 /// ```
 /// [`Strompris`]: crate::Strompris
