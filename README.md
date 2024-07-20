@@ -19,7 +19,7 @@ use strompris::{PriceRegion, Date};
 fn main() {
     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
     let client = Strompris::default();
-    let prices = client.get_price(date, PriceRegion::NO1).unwrap();
+    let prices = client.get_prices(date, PriceRegion::NO1).unwrap();
     for price in prices.iter() {
         println!("From: {}", price.time_start.time());
         println!("To: {}", price.time_end.time());

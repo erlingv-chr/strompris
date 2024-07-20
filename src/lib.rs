@@ -29,6 +29,7 @@
 //! [`www.hvakosterstrommen.no`]: www.hvakosterstrommen.no
 
 #![deny(missing_docs)]
+#[doc = include_str!("../README.md")]
 
 use crate::error::Result;
 use chrono::{Datelike, NaiveDate};
