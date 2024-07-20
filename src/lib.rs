@@ -36,10 +36,10 @@ use reqwest::header::HeaderMap;
 use reqwest::Client;
 use url::Url;
 
+pub use error::Error;
 pub use models::Date;
 pub use models::HourlyPrice;
 pub use models::PriceRegion;
-pub use error::Error;
 
 pub mod blocking;
 pub mod error;
@@ -141,9 +141,9 @@ impl Default for Strompris {
 mod tests {
     use chrono::{DateTime, Utc};
 
+    use super::*;
     use crate::blocking;
     use crate::models::Date;
-    use super::*;
 
     #[tokio::test]
     async fn async_works() {

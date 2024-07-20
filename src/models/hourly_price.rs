@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
 use crate::local_time_deserializer;
 use chrono::{DateTime, FixedOffset};
+use std::cmp::Ordering;
 
 /// Wraps the resulting JSON-object, exposing each attribute.
 ///
