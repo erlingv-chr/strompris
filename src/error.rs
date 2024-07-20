@@ -11,7 +11,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// Errors that does not originate from dependencies
     #[from]
-    Custom(String),
+    Generic(String),
     /// Wrapper for reqwest::Error
     #[from]
     ReqwestError(reqwest::Error),

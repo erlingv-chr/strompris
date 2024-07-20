@@ -60,7 +60,7 @@ impl Strompris {
         };
 
         if !self.date_after_min_date(&date) {
-            return Err(Error::Custom("Date is before the minimum acceptable date".to_string()));
+            return Err(Error::Generic("Date is before the minimum acceptable date".to_string()));
         }
 
         let year = date.year();
@@ -70,7 +70,7 @@ impl Strompris {
         let url = self.base_url.join(endpoint.as_str()).unwrap();
         let response = self.client.get(url).send()?;
         if response.status().is_client_error() {
-            return Err(Error::Custom("Prices are not available for this date".to_string()));
+            return Err(Error::Generic("Prices are not available for this date".to_string()));
         }
 
         Ok(response.json::<Vec<HourlyPrice>>()?)

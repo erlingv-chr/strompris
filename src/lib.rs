@@ -97,7 +97,7 @@ impl Strompris {
     /// local time.
     pub async fn get_prices(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
         if !self.date_after_min_date(&date) {
-            return Err(Error::Custom("Date is before the minimum acceptable date".into()));
+            return Err(Error::Generic("Date is before the minimum acceptable date".into()));
         }
 
         let price_region = match price_region {
@@ -116,7 +116,7 @@ impl Strompris {
 
         let response = self.client.get(url).send().await?;
         if response.status().is_client_error() {
-            return Err(Error::Custom("Prices are not available for this date".to_string()));
+            return Err(Error::Generic("Prices are not available for this date".to_string()));
         }
 
         Ok(response.json::<Vec<HourlyPrice>>().await?)
