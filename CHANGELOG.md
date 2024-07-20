@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved tokio to dev-dependencies
 - Doc examples for the two Strompris structs.
 - Changed license file type to txt.
+- `Error::Custom` is renamed to `Error::Generic`
 
 ## [0.3.1] - 2024-07-19
 ### Added
