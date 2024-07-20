@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unpublished]
 ## Changed
 - Changed method name from `get_price()` to `get_prices()` to reflect that the method get prices for 24 hours
+- Moved tokio to dev-dependencies
+- Doc examples for the two Strompris structs.
+- Changed license file type to txt.
 
 ## [0.3.1] - 2024-07-19
 ### Added
