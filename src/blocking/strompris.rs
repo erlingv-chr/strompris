@@ -18,7 +18,7 @@ use crate::{HourlyPrice, MIN_DATE};
 ///
 /// let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 /// let client = Strompris::default();
-/// let resp = client.get_price(date, PriceRegion::NO1).unwrap();
+/// let resp = client.get_prices(date, PriceRegion::NO1).unwrap();
 /// for r in resp.iter() {
 ///     dbg!(r);
 /// }
@@ -45,9 +45,11 @@ impl Strompris {
 
     /// Get the price for the given date and price region.
     ///
+    /// The prices are represented by a vector consisting of 24 hourly prices.
+    ///
     /// Note: The API does not know the future! Tomorrow's prices are usually ready by 13:00,
     /// local time.
-    pub fn get_price(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
+    pub fn get_prices(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
         let price_region = match price_region {
             PriceRegion::NO1 => "NO1",
             PriceRegion::NO2 => "NO2",

@@ -16,7 +16,7 @@
 //! async fn main() -> Result<(), Error> {
 //!     let date = Date::from_ymd_opt(2024, 1, 31).unwrap();
 //!     let client = Strompris::default();
-//!     let resp = client.get_price(date, PriceRegion::NO1).await?;
+//!     let resp = client.get_prices(date, PriceRegion::NO1).await?;
 //!     for r in resp.iter() {
 //!         dbg!(r);
 //!     }
@@ -60,7 +60,7 @@ static MIN_DATE: Option<NaiveDate> = NaiveDate::from_ymd_opt(2021, 12, 1);
 /// use strompris::Error;
 /// let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
 /// let client = Strompris::default();
-/// let resp = client.get_price(date, PriceRegion::NO1).await?;
+/// let resp = client.get_prices(date, PriceRegion::NO1).await?;
 /// for r in resp.iter() {
 ///     dbg!(r);
 /// }
@@ -87,11 +87,13 @@ impl Strompris {
         Strompris { client, base_url }
     }
 
-    /// Get the price for the given date and price region.
+    /// Get the prices for the given date and price region.
+    ///
+    /// The prices are represented by a vector consisting of 24 hourly prices.
     ///
     /// Note: The API does not know the future! Tomorrow's prices are usually ready by 13:00,
     /// local time.
-    pub async fn get_price(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
+    pub async fn get_prices(&self, date: impl Datelike, price_region: PriceRegion) -> Result<Vec<HourlyPrice>> {
         if !self.date_after_min_date(&date) {
             return Err(Error::Custom("Date is before the minimum acceptable date".into()));
         }
@@ -147,21 +149,21 @@ mod tests {
 
         // Just tests if the request goes through and deserializes correctly
         let date = Date::from_ymd_opt(2024, 7, 15).unwrap();
-        client.get_price(date, PriceRegion::NO1).await.unwrap();
+        client.get_prices(date, PriceRegion::NO1).await.unwrap();
     }
 
     #[test]
     fn blocking_works() {
         let date = Date::from_ymd_opt(2024, 7, 14).unwrap();
         let client = blocking::Strompris::default();
-        client.get_price(date, PriceRegion::NO1).unwrap();
+        client.get_prices(date, PriceRegion::NO1).unwrap();
     }
 
     #[test]
     fn blocking_works_with_chrono_date() {
         let date = NaiveDate::from_ymd_opt(2024, 7, 14).unwrap();
         let client = blocking::Strompris::default();
-        client.get_price(date, PriceRegion::NO1).unwrap();
+        client.get_prices(date, PriceRegion::NO1).unwrap();
         let date: DateTime<Utc> = DateTime::default()
             .with_year(2024)
             .unwrap()
@@ -169,14 +171,14 @@ mod tests {
             .unwrap()
             .with_day(15)
             .unwrap();
-        client.get_price(date, PriceRegion::NO1).unwrap();
+        client.get_prices(date, PriceRegion::NO1).unwrap();
     }
 
     #[tokio::test]
     async fn async_works_with_chrono_date() {
         let date = NaiveDate::from_ymd_opt(2024, 7, 14).unwrap();
         let client = Strompris::default();
-        client.get_price(date, PriceRegion::NO1).await.unwrap();
+        client.get_prices(date, PriceRegion::NO1).await.unwrap();
         let date: DateTime<Utc> = DateTime::default()
             .with_year(2024)
             .unwrap()
@@ -184,14 +186,14 @@ mod tests {
             .unwrap()
             .with_day(15)
             .unwrap();
-        client.get_price(date, PriceRegion::NO1).await.unwrap();
+        client.get_prices(date, PriceRegion::NO1).await.unwrap();
     }
 
     #[tokio::test]
     async fn async_returns_error_when_given_an_early_date() {
         let date = NaiveDate::from_ymd_opt(2021, 11, 30).unwrap();
         let client = Strompris::default();
-        let result = client.get_price(date, PriceRegion::NO1).await;
+        let result = client.get_prices(date, PriceRegion::NO1).await;
 
         assert_eq!(
             result.err().map(|e| e.to_string()).unwrap(),
@@ -202,7 +204,7 @@ mod tests {
     fn blocking_returns_error_when_given_an_early_date() {
         let date = NaiveDate::from_ymd_opt(2021, 11, 30).unwrap();
         let client = blocking::Strompris::default();
-        let result = client.get_price(date, PriceRegion::NO1);
+        let result = client.get_prices(date, PriceRegion::NO1);
         assert_eq!(
             result.err().map(|e| e.to_string()).unwrap(),
             "Date is before the minimum acceptable date".to_string()
@@ -213,7 +215,7 @@ mod tests {
     fn blocking_returns_error_when_getting_price_from_futre() {
         let date = NaiveDate::from_ymd_opt(2999, 11, 30).unwrap();
         let client = blocking::Strompris::default();
-        let result = client.get_price(date, PriceRegion::NO1);
+        let result = client.get_prices(date, PriceRegion::NO1);
         assert_eq!(
             result.err().map(|e| e.to_string()).unwrap(),
             "Prices are not available for this date".to_string()
@@ -224,7 +226,7 @@ mod tests {
     async fn async_returns_error_when_getting_price_from_futre() {
         let date = NaiveDate::from_ymd_opt(2999, 11, 30).unwrap();
         let client = Strompris::default();
-        let result = client.get_price(date, PriceRegion::NO1).await;
+        let result = client.get_prices(date, PriceRegion::NO1).await;
         assert_eq!(
             result.err().map(|e| e.to_string()).unwrap(),
             "Prices are not available for this date".to_string()
